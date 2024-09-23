@@ -1,0 +1,14 @@
+008b535df03fae947b7ae672a08de7e2 *DESCRIPTION
+7c86909c9a3ba8a5b042bb5ce4e4a881 *NAMESPACE
+00fb1828a66d94713288fda07524f254 *R/gpcm.R
+c084995877164d557ee638aec111cacf *R/gpcmStruct.R
+2b30c1308f1a7c655cb009831d24ddd1 *R/logLik.R
+181b5ac5a69bd3e3e542680739e88fd5 *build/partial.rdb
+580f0bcc13fe86fe6681a9b4ee95e09f *man/gpcm-class.Rd
+52aca83c27194ed976cef5a403c1edcf *man/gpcm.Rd
+4694bb39ea6cf175b1ec7d814beb6566 *man/logLikFunc.Rd
+39c5e102a0a7aaa98bddb420aeff296d *man/predict.gpcm.Rd
+4d001ca53734c8a7fa42dbc8a462c86f *man/show.gpcm.Rd
+463eb5ca73f34f5a914f4290904271e7 *man/update.gpcm.Rd
+5bc125ce22ddd9ad2d9ee6b5bf9f09bf *tests/testthat.R
+e4a6fad2ce0636c6e9a91f917e353afa *tests/testthat/test-GPCmodel.R
