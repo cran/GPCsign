@@ -7,14 +7,14 @@
 gpcm(f, Xf, covtype = "matern5_2", noise.var = 1e-6,
      coef.cov = NULL, coef.m = NULL, multistart = 1,
      seed = NULL, lower = NULL, upper = NULL, nsimu = 100,
-     normalize = TRUE, X.mean = NULL, X.std = NULL)
+     normalize = TRUE, X.mean = NULL, X.std = NULL, MeanTransform = NULL)
 }
 \arguments{
 \item{f}{a vector containing the binary observations (+/-1) corresponding to the class labels.}
 
 \item{Xf}{a matrix representing the design of experiments.}
 
-\item{covtype}{a character string specifying the covariance structure for the latent GP. Default is \code{matern_5_2}.}
+\item{covtype}{a character string specifying the covariance structure for the latent GP. Default is \code{matern5_2}.}
 
 \item{noise.var}{variance value standing for the homogeneous nugget effect. Default is 1e-6.}
 
@@ -38,6 +38,8 @@ will be performed in parallel provided that a parallel backend is registered (se
 \item{X.mean}{(see below).}
 
 \item{X.std}{optional vectors containing mean and  standard deviation values for each column of the input matrix. If they are not provided, they are computed from the input matrix \code{Xf}.}
+
+\item{MeanTransform}{optional character string specifying a transform of the latent process mean coef.m. If \code{positive} (resp. negative), coef.m is constrained to be positive (resp. negative) by an exponential transform.}
 }
 \value{
 An object of class \code{gpcm}. See \code{\link{gpcm-class}}.

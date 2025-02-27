@@ -1,7 +1,7 @@
 Package: GPCsign
 Title: Gaussian Process Classification as Described in Bachoc et al.
         (2020)
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(person("Morgane", "Menz", role = c("aut","cre"), email = "morgane.menz@ifpen.fr"), 
     person("Céline", "Helbert", role = c("aut")),
     person("Victor", "Picheny", role = c("aut")),
@@ -15,7 +15,7 @@ Imports: DiceKriging, tmvtnorm, TruncatedNormal (>= 2.3), future.apply,
         future, methods, stats
 Suggests: DiceDesign, testthat
 NeedsCompilation: no
-Packaged: 2024-09-20 14:17:20 UTC; menzm
+Packaged: 2025-02-26 09:26:43 UTC; menzm
 Author: Morgane Menz [aut, cre],
   Céline Helbert [aut],
   Victor Picheny [aut],
@@ -23,4 +23,4 @@ Author: Morgane Menz [aut, cre],
   Naoual Serraji [ctb]
 Maintainer: Morgane Menz <morgane.menz@ifpen.fr>
 Repository: CRAN
-Date/Publication: 2024-09-23 13:02:01 UTC
+Date/Publication: 2025-02-27 14:10:02 UTC

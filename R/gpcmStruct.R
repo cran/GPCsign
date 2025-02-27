@@ -32,6 +32,7 @@
 #' @slot u Object of class \code{"numeric"}. Upper truncation points. Parameter to generate new \code{Z_obs}.
 #' @slot K Object of class \code{"matrix"}. Covariance matrix of design points. Parameter to generate new \code{Z_obs}
 #' @slot invK Object of class \code{"matrix"}. The inverse of the matrix \code{K} whose Cholesky decomposition was given.
+#' @slot MeanTransform object of class \code{"character"}. \code{'positive'} if coef.m is constrained to be positive by an exponential transform, \code{'negative'} if coef.m is constrained to be negative.
 #'
 #' @seealso { \code{\link{gpcm}} for more details about slots and to create a \code{gpcm} object. \code{{covStruct.create}} in \code{DiceKriging} to construct a covariance structure.}
 #' @author Morgane MENZ, Céline HELBERT, Victor PICHENY, François BACHOC. Contributors: Naoual SERRAJI.
@@ -46,7 +47,7 @@ setClass("gpcm",slots =
              ## data
              X = "matrix",
              y = "matrix",
-             X.std ="numeric",
+             X.std = "numeric",
              X.mean = "numeric",
              call = "language",
              ## mean
@@ -66,9 +67,10 @@ setClass("gpcm",slots =
              ## auxiliary variables
              Z_obs = "matrix",
              l = "numeric",
-             u ="numeric",
+             u = "numeric",
              K = "matrix",
-             invK = "matrix"
+             invK = "matrix",
+             MeanTransform ="character"
            )
 )
 
@@ -211,15 +213,18 @@ predict.gpcm <- function(object, newdata, nsimu = NULL, light.return = FALSE, ch
   
   
   kstar <- DiceKriging::covMat1Mat2(object = object@covariance, X1 = Xf, X2 = newdata)
-  kz <- DiceKriging::covMatrix(object = object@covariance, X = newdata)$C
   probs <- matrix(NA, nrow = nrow(newdata), ncol = nsimu)
   
   lambda <- object@invK %*% kstar
-  Zsimu_c <- kz - t(kstar) %*% lambda
   Zsimu_var <- object@covariance@sd2 - colSums(kstar * lambda)
   Zsimu_var[Zsimu_var < 0] <- 0
   Zsimu_sd <- sqrt(Zsimu_var)
-  
+  if (!light.return) {
+      kz <- DiceKriging::covMatrix(object = object@covariance, X = newdata)$C
+      Zsimu_c <- kz - t(kstar) %*% lambda
+      Zsimu_c <- 0.5*(Zsimu_c + t(Zsimu_c)) ## solve symmetry problems due to machine precision 
+  }
+
   Zsimu_mean <- object@coef.m + t(lambda) %*% (Z_obs - object@coef.m)
   Zbar <- (apply(Zsimu_mean, 2, function(x) x / Zsimu_sd))
   probs <- 1 - pnorm(-Zbar)
@@ -339,11 +344,16 @@ update.gpcm <- function(object, newf, newXf, newX.alreadyExist=TRUE, newnoise.va
   coef.cov <- object@coef.cov
   coef.m <- object@coef.m
   covtype <- object@covariance@name
+  MeanTransform <- object@MeanTransform
+  if(MeanTransform=='NoTransform') MeanTransform <- NULL
   
   
-  if (length(lower)!=object@d) lower <- rep(0.2, object@d)
-  if (length(upper)!=object@d) upper <- rep(3., object@d)
+  if (!is.null(lower) & (length(lower)!=object@d)) lower <- rep(0.2, object@d)
+  if (!is.null(upper) & (length(upper)!=object@d)) upper <- rep(3., object@d)
   
+  if(is.null(lower)) lower <- object@lower
+  if(is.null(upper)) upper <- object@upper
+
   
   if (normalize == TRUE) {
     if (!any(is.nan(object@X.mean))) {
@@ -375,7 +385,7 @@ update.gpcm <- function(object, newf, newXf, newX.alreadyExist=TRUE, newnoise.va
     noise.var <- newnoise.var
   }
   GPCmod <- gpcm(f = f, Xf = Xf, covtype=covtype, coef.cov = coef.cov, coef.m = coef.m, noise.var = noise.var, seed=seed, nsimu = nsimu,
-                 lower=lower, upper=upper, X.mean = X.mean, X.std = X.std, normalize = normalize,  multistart=multistart)
+                 lower=lower, upper=upper, X.mean = X.mean, X.std = X.std, normalize = normalize,  multistart=multistart, MeanTransform=MeanTransform)
   return(GPCmod)
 }
 
@@ -438,7 +448,12 @@ setMethod(f="update",signature="gpcm",
   
   cat("Mean  coeff.:\n")
   print(object@coef.m, quote=FALSE)
-  
+
+  if(!(object@MeanTransform=='NoTransform')){
+  cat("Mean transform:\n")
+  print(object@MeanTransform, quote=FALSE)
+  }
+
   show(object@covariance)
   
 }

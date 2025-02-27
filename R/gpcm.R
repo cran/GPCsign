@@ -4,7 +4,7 @@
 #'
 #' @param f a vector containing the binary observations (+/-1) corresponding to the class labels.
 #' @param Xf a matrix representing the design of experiments.
-#' @param covtype a character string specifying the covariance structure for the latent GP. Default is \code{matern_5_2}.
+#' @param covtype a character string specifying the covariance structure for the latent GP. Default is \code{matern5_2}.
 #' @param noise.var variance value standing for the homogeneous nugget effect. Default is 1e-6.
 #' @param coef.cov an optional vector containing the values for covariance parameters for the latent GP. (See below).
 #' @param coef.m an optional scalar corresponding to the mean value of the latent GP. If both \code{coef.cov} and \code{coef.m} are provided, no covariance parameter estimation is performed. If at least one of them is missing, both are estimated.
@@ -17,11 +17,12 @@
 #' @param normalize a logical parameter indicating whether to normalize the input matrix \code{Xf}. If \code{TRUE}, the matrix will be normalized using \code{X.mean} and \code{X.std} values if given; otherwise, the mean and standard deviation are computed and used for normalization.
 #' @param X.mean (see below).
 #' @param X.std optional vectors containing mean and  standard deviation values for each column of the input matrix. If they are not provided, they are computed from the input matrix \code{Xf}.
-#'
+#' @param MeanTransform optional character string specifying a transform of the latent process mean coef.m. If \code{positive} (resp. negative), coef.m is constrained to be positive (resp. negative) by an exponential transform.   
+#' 
 #' @usage gpcm(f, Xf, covtype = "matern5_2", noise.var = 1e-6,
 #'      coef.cov = NULL, coef.m = NULL, multistart = 1,
 #'      seed = NULL, lower = NULL, upper = NULL, nsimu = 100,
-#'      normalize = TRUE, X.mean = NULL, X.std = NULL)
+#'      normalize = TRUE, X.mean = NULL, X.std = NULL, MeanTransform = NULL)
 #'      
 #' @return An object of class \code{gpcm}. See \code{\link{gpcm-class}}.
 #' @references Bachoc, F., Helbert, C. & Picheny, V. Gaussian process optimization with failures: classification and convergence proof. \emph{J Glob Optim} \bold{78}, 483–506 (2020). \doi{10.1007/s10898-020-00920-0}.
@@ -124,7 +125,7 @@
 #' ## Explicitly close multisession workers by switching plan
 #' plan(sequential)
 #' }
-`gpcm` <- function(f, Xf, covtype = "matern5_2", noise.var = 1e-6, coef.cov = NULL, coef.m = NULL, multistart = 1, seed = NULL, lower = NULL, upper = NULL, nsimu = 100, normalize = TRUE, X.mean = NULL, X.std = NULL) {
+`gpcm` <- function(f, Xf, covtype = "matern5_2", noise.var = 1e-6, coef.cov = NULL, coef.m = NULL, multistart = 1, seed = NULL, lower = NULL, upper = NULL, nsimu = 100, normalize = TRUE, X.mean = NULL, X.std = NULL, MeanTransform = NULL) {
   
   model <- new("gpcm")
   Xf <- as.matrix(data.frame(Xf))
@@ -136,16 +137,21 @@
   model@noise.flag <- (length(noise.var) != 0)
   model@noise.var <- as.numeric(noise.var)
   
+  if(is.null(MeanTransform)){ 
+    model@MeanTransform <- 'NoTransform'
+  }else{
+    model@MeanTransform <- MeanTransform}
   
   if (length(lower)!=model@d) lower <- rep(0.2, model@d)
   if (length(upper)!=model@d) upper <- rep(3., model@d)
+
+  model@lower <- lower
+  model@upper <- upper
   
   lower <- c(-2, log(lower))
   upper <- c(2, log(upper))
   
-  model@lower <- lower
-  model@upper <- upper
-  
+
   if (normalize == TRUE) {
     if (!(is.null(X.mean) || is.null(X.std))) {
       Xf <- scale(Xf, center = X.mean, scale = X.std)
@@ -154,8 +160,7 @@
       X.std <- sqrt(apply(Xf, FUN = var, MARGIN = 2))
       Xf <- scale(Xf, center = X.mean, scale = X.std)
     }
-  }
-  else{
+  }else{
     X.mean <- NaN
     X.std <- NaN
   }
@@ -167,6 +172,11 @@
   
   isCovAndMean <- !(is.null(coef.cov) || is.null(coef.m))
   isMulti <- multistart > 1
+
+  if(isCovAndMean & !is.null(MeanTransform)){
+    if(MeanTransform=='positive') coef.m <- log(coef.m)
+    if(MeanTransform=='negative') coef.m <- log(-coef.m)
+  }
   
   if (!(isCovAndMean) || (isCovAndMean & isMulti)) {
     model@param.estim = T
@@ -174,15 +184,14 @@
     
     if (!isMulti) {
       if(isCovAndMean){
-        par <- c(coef.m, log(coef.cov))
+         par <- c(coef.m, log(coef.cov))
       }else{
         set.seed(seed)
         par <- lower + runif(model@d + 1) * (upper - lower)
       }
-     
       res <- optim(
         fn = `logLikFunc`, control=control, par = par, lower = lower, upper = upper, method = "L-BFGS-B",
-        f = f, Xf = Xf, covtype = covtype, noise.var = noise.var, seed = seed
+        f = f, Xf = Xf, covtype = covtype, noise.var = noise.var, seed = seed, MeanTransform = MeanTransform
       )
     }else {
       if(isCovAndMean){
@@ -195,10 +204,16 @@
       }
       par <- lapply(apply(par, 1, list), unlist)
       
-      
+      ## check initial values
+      logLik_init <- future_lapply(
+        X = par, FUN = `logLikFunc`, f = f, Xf = Xf, covtype = covtype, noise.var = noise.var, seed = seed, MeanTransform = MeanTransform, future.globals = TRUE, future.seed = TRUE, future.packages = c("DiceKriging", "mvtnorm")
+      )
+
+      par <- par[!is.na(logLik_init)]
+
       lres <- future_lapply(
         X = par, FUN = optim, fn = `logLikFunc`, control=control, lower = lower, upper = upper, method = "L-BFGS-B",
-        f = f, Xf = Xf, covtype = covtype, noise.var = noise.var, seed = seed, future.globals = TRUE, future.seed = TRUE, future.packages = c("DiceKriging", "mvtnorm")
+        f = f, Xf = Xf, covtype = covtype, noise.var = noise.var, seed = seed, MeanTransform = MeanTransform, future.globals = TRUE, future.seed = TRUE, future.packages = c("DiceKriging", "mvtnorm")
       )
       
       
@@ -217,13 +232,22 @@
       }
       
       res <- lres[[which.min(bestlogl)]]
-    }
-    coef.m <- res$par[1] # res$par[1]
-    coef.cov <- exp(res$par[-1])
-    logLik<- res$value
-  }else {
+      }
+      coef.cov <- exp(res$par[-1])
+      coef.m <- res$par[1]
+      if(!is.null(MeanTransform)){
+          if(MeanTransform=='positive') coef.m <- exp(coef.m)
+          if(MeanTransform=='negative') coef.m <- -exp(coef.m)
+      }
+      logLik <- res$value
+    
+    }else{
     par <- c(coef.m, log(coef.cov))
-    logLik <- logLikFunc(par, f, Xf)
+    logLik <- logLikFunc(par, f, Xf, MeanTransform = MeanTransform)
+    if(!is.null(MeanTransform)){
+          if(MeanTransform=='positive') coef.m <- exp(coef.m)
+          if(MeanTransform=='negative') coef.m <- -exp(coef.m)
+      }
     model@param.estim <- F
   }
   

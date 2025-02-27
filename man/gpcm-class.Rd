@@ -51,6 +51,8 @@ S4 class for GPC models.
 \item{\code{K}}{Object of class \code{"matrix"}. Covariance matrix of design points. Parameter to generate new \code{Z_obs}}
 
 \item{\code{invK}}{Object of class \code{"matrix"}. The inverse of the matrix \code{K} whose Cholesky decomposition was given.}
+
+\item{\code{MeanTransform}}{object of class \code{"character"}. \code{'positive'} if coef.m is constrained to be positive by an exponential transform, \code{'negative'} if coef.m is constrained to be negative.}
 }}
 
 \section{Objects from the Class}{

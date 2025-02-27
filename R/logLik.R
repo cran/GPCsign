@@ -5,12 +5,13 @@
 #' @param par vector contains the \code{coef.m} and the log of \code{coef.cov}.
 #' @param f vector of binary observations (+/-1) corresponding to the class labels.
 #' @param Xf a matrix representing the design of experiments.
-#' @param covtype a character string specifying the covariance structure for the latent GP. Default is \code{matern_5_2}.
+#' @param covtype a character string specifying the covariance structure for the latent GP. Default is \code{matern5_2}.
 #' @param noise.var nugget effect. Default is 1e-6.
 #' @param seed to fix the seed, default is \code{NULL}.
 #' @param return.all an optional boolean. If \code{FALSE}, only the log-likelihood is returned; if \code{TRUE}, \code{K} and \code{cov.fun} are also returned. Default is \code{FALSE}.
+#' @param MeanTransform optional character string specifying a transform of the latent process mean coef.m. If \code{positive} (resp. negative), coef.m is constrained to be positive (resp. negative) by an exponential transform.   
 #' @usage logLikFunc(par, f, Xf, covtype = "matern5_2", noise.var = 1e-6,
-#'      seed = NULL, return.all = FALSE)
+#'      seed = NULL, MeanTransform = NULL, return.all = FALSE)
 #'   
 #' @return
 #'    \item{logLik}{the log-likelihood.}
@@ -44,11 +45,15 @@
 #' logLik <- result$logLik
 #' print(logLik)
 #'
-logLikFunc <- function(par, f, Xf, covtype = "matern5_2", noise.var = 1e-6, seed = NULL, return.all = FALSE) {
-  
+logLikFunc <- function(par, f, Xf, covtype = "matern5_2", noise.var = 1e-6, seed = NULL, MeanTransform = NULL, return.all = FALSE) {
+ 
   coef.m <- par[1]
   coef.cov <- exp(par[-1])
-  
+
+  if(!is.null(MeanTransform)){
+    if(MeanTransform=='positive') coef.m <- exp(coef.m)
+    if(MeanTransform=='negative') coef.m <- -exp(coef.m)
+  }
   d <- ncol(Xf)
   nobs <- nrow(Xf)
   
@@ -62,8 +67,14 @@ logLikFunc <- function(par, f, Xf, covtype = "matern5_2", noise.var = 1e-6, seed
   upper[f == -1] <- 0
   
   set.seed(seed)
-  logLikli <- TruncatedNormal::pmvnorm(lb = lower, ub = upper, mu= rep(coef.m,length(upper)), sigma = K, B=2000, type="qmc")
-  logLik = log(logLikli[1])
+  Likli <- try(TruncatedNormal::pmvnorm(lb = lower, ub = upper, mu= rep(coef.m,length(upper)), sigma = K, B=3000, type="qmc"), silent =TRUE)
+ 
+  if(inherits(Likli, "try-error")){
+    warning('Failed to estimate likelihood: consider restraining lengthscales search space to lower values')
+      logLik = NA
+  }
+  else{logLik = log(Likli[1])}
+  # logLik = log(Likli[1])
   res <- list(logLik = logLik, K = K, cov.fun = cov.fun)
   
   if (!return.all) {

@@ -5,7 +5,7 @@
 \title{Compute logLikelihood}
 \usage{
 logLikFunc(par, f, Xf, covtype = "matern5_2", noise.var = 1e-6,
-     seed = NULL, return.all = FALSE)
+     seed = NULL, MeanTransform = NULL, return.all = FALSE)
 }
 \arguments{
 \item{par}{vector contains the \code{coef.m} and the log of \code{coef.cov}.}
@@ -14,11 +14,13 @@ logLikFunc(par, f, Xf, covtype = "matern5_2", noise.var = 1e-6,
 
 \item{Xf}{a matrix representing the design of experiments.}
 
-\item{covtype}{a character string specifying the covariance structure for the latent GP. Default is \code{matern_5_2}.}
+\item{covtype}{a character string specifying the covariance structure for the latent GP. Default is \code{matern5_2}.}
 
 \item{noise.var}{nugget effect. Default is 1e-6.}
 
 \item{seed}{to fix the seed, default is \code{NULL}.}
+
+\item{MeanTransform}{optional character string specifying a transform of the latent process mean coef.m. If \code{positive} (resp. negative), coef.m is constrained to be positive (resp. negative) by an exponential transform.}
 
 \item{return.all}{an optional boolean. If \code{FALSE}, only the log-likelihood is returned; if \code{TRUE}, \code{K} and \code{cov.fun} are also returned. Default is \code{FALSE}.}
 }
